@@ -44,7 +44,7 @@ namespace MassTransit.DapperIntegration
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                var tableName = typeof(TSaga).Name;
+                var tableName = GetTableName<TSaga>();
                 var (columnName, value) = GetFilterFromExpression(query.FilterExpression);
 
                 return
@@ -226,9 +226,27 @@ namespace MassTransit.DapperIntegration
             var body = expression.Body as BinaryExpression;
             var left = body?.Left as MemberExpression;
             var right = body?.Right as ConstantExpression;
+            object value;
+
+            if (right == null)
+            {
+                try
+                {
+                    value = Expression.Lambda<Func<object>>(
+                        Expression.Convert(body.Right, typeof(object))).Compile().Invoke();
+                }
+                catch (Exception ex)
+                {
+                    value = null;
+                }
+
+            }
+            else
+            {
+                value = right?.Value;
+            }
 
             var fieldName = left?.Member.Name;
-            var value = right?.Value;
 
             return (fieldName, value);
         }
