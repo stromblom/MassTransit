@@ -19,7 +19,7 @@ namespace MassTransit.DapperIntegration.Tests
     using NUnit.Framework;
 
 
-    public class SqlExpressionTests
+    public class SqlExpressionVisitorTests
     {
         [Test]
         public void CreateFromExpression_CanHandleEqualNodes_WithConstantValues()
