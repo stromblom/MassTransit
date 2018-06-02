@@ -14,7 +14,7 @@
 
 
     [TestFixture, Category("Integration")]
-    public class LocatingExistingSagag :
+    public class DapperSagaRepositoryTests :
         InMemoryTestFixture
     {
         [Test]
@@ -73,7 +73,7 @@
 
         readonly Lazy<ISagaRepository<SimpleSaga>> _sagaRepository;
 
-        public LocatingExistingSagag()
+        public DapperSagaRepositoryTests()
         {
             var connectionString = LocalDbConnectionStringProvider.GetLocalDbConnectionString();
             this._sagaRepository = new Lazy<ISagaRepository<SimpleSaga>>(() => new DapperSagaRepository<SimpleSaga>(connectionString));
