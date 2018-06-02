@@ -17,6 +17,7 @@ namespace MassTransit.DapperIntegration
     using System.Data.SqlClient;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Text;
     using System.Threading.Tasks;
     using System.Transactions;
     using Dapper;
@@ -45,11 +46,11 @@ namespace MassTransit.DapperIntegration
             using (var connection = new SqlConnection(_connectionString))
             {
                 var tableName = GetTableName<TSaga>();
-                var (columnName, value) = GetFilterFromExpression(query.FilterExpression);
+                var (whereStatement, parameters) = GetFilterFromExpression(query.FilterExpression);
 
                 return
-                    (await connection.QueryAsync<Guid>($"SELECT CorrelationId FROM {tableName} WITH (UPDLOCK, ROWLOCK) WHERE {columnName} = @value",
-                        new { value }).ConfigureAwait(false)).ToList();
+                    (await connection.QueryAsync<Guid>($"SELECT CorrelationId FROM {tableName} WITH (UPDLOCK, ROWLOCK) {whereStatement}",
+                        parameters).ConfigureAwait(false)).ToList();
             }
         }
 
@@ -131,11 +132,11 @@ namespace MassTransit.DapperIntegration
                 try
                 {
                     var tableName = GetTableName<T>();
-                    var (columnName, value) = GetFilterFromExpression(context.Query.FilterExpression);
+                    var (whereStatement, parameters) = GetFilterFromExpression(context.Query.FilterExpression);
 
                     var instances =
-                        (await connection.QueryAsync<TSaga>($"SELECT * FROM {tableName} WITH (UPDLOCK, ROWLOCK) WHERE {columnName} = @value",
-                            new { value }).ConfigureAwait(false)).ToList();
+                        (await connection.QueryAsync<TSaga>($"SELECT * FROM {tableName} WITH (UPDLOCK, ROWLOCK) {whereStatement}",
+                            parameters).ConfigureAwait(false)).ToList();
 
                     if (!instances.Any())
                     {
@@ -221,14 +222,67 @@ namespace MassTransit.DapperIntegration
             }
         }
 
-        (string ColumnName, object Value) GetFilterFromExpression(Expression<Func<TSaga, bool>> expression)
+        (string whereStatement, DynamicParameters parameters) GetFilterFromExpression(Expression<Func<TSaga, bool>> expression)
         {
-            var body = expression.Body as BinaryExpression;
-            var left = body?.Left as MemberExpression;
-            var right = body?.Right as ConstantExpression;
+            var columnsAndValues = GetFilterFromExpression(expression.Body);
+            var parameters = new DynamicParameters();
+
+            if (!columnsAndValues.Any())
+            {
+                return (string.Empty, parameters);
+            }
+
+            var sb = new StringBuilder();
+            sb.Append("WHERE ");
+
+            var i = 0;
+            foreach (var (name, value) in columnsAndValues)
+            {
+                if (i > 0)
+                {
+                    sb.Append(" AND");
+                }
+
+                var valueName = $"@value{i}";
+                sb.Append($" {name} = {valueName}");
+                parameters.Add(valueName, value);
+                i++;
+            }
+
+            return (sb.ToString(), parameters);
+        }
+
+        List<(string ColumnName, object Value)> GetFilterFromExpression(Expression expression)
+        {
+            var returnValues = new List<(string, object)>();
+            if (expression is MemberExpression foo)
+            {
+                var name = foo.Member.Name;
+                returnValues.Add((name, true));
+                return returnValues;
+            }
+
+            var body = expression as BinaryExpression;
+
+            string fieldName;
             object value;
 
-            if (right == null)
+            if (body.Left is MemberExpression left)
+            {
+                fieldName = left?.Member.Name;
+            }
+            else
+            {
+                returnValues.AddRange(GetFilterFromExpression(body.Left));
+                returnValues.AddRange(GetFilterFromExpression(body.Right));
+                return returnValues;
+            }
+
+            if (body.Right is ConstantExpression right)
+            {
+                value = right?.Value;
+            }
+            else if (body?.Right is MemberExpression)
             {
                 try
                 {
@@ -239,16 +293,14 @@ namespace MassTransit.DapperIntegration
                 {
                     value = null;
                 }
-
             }
             else
             {
-                value = right?.Value;
+                value = null;
             }
 
-            var fieldName = left?.Member.Name;
-
-            return (fieldName, value);
+            returnValues.Add((fieldName, value));
+            return returnValues;
         }
 
         protected virtual async Task InsertSagaInstance(SqlConnection sqlConnection, TSaga instance)

@@ -40,6 +40,8 @@ namespace MassTransit.DapperIntegration.Tests
         [ExplicitKey]
         public Guid CorrelationId { get; set; }
 
+        public string CorrelateBySomething { get; set; }
+
         public async Task Consume(ConsumeContext<ObservableSagaMessage> message)
         {
             Observed = true;

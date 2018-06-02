@@ -16,6 +16,19 @@
         InMemoryTestFixture
     {
         [Test]
+        public async Task TestExpressions()
+        {
+            Guid sagaId = NewId.NextGuid();
+            var message = new InitiateSimpleSaga(sagaId);
+
+            await this.InputQueueSendEndpoint.Send(message);
+
+            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelateBySomething == "Fiskbullar", this.TestTimeout); // Works
+            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId, this.TestTimeout); // Works
+            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId && x.Completed, this.TestTimeout); // Works
+        }
+
+        [Test]
         public async Task A_correlated_message_should_find_the_correct_saga()
         {
             Guid sagaId = NewId.NextGuid();
