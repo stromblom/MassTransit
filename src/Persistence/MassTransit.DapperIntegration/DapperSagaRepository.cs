@@ -22,6 +22,7 @@ namespace MassTransit.DapperIntegration
     using System.Transactions;
     using Dapper;
     using Dapper.Contrib.Extensions;
+    using ExpressionVisitor;
     using GreenPipes;
     using Logging;
     using Saga;
@@ -224,7 +225,7 @@ namespace MassTransit.DapperIntegration
 
         (string whereStatement, DynamicParameters parameters) GetFilterFromExpression(Expression<Func<TSaga, bool>> expression)
         {
-            var columnsAndValues = GetFilterFromExpression(expression.Body);
+            var columnsAndValues = SqlExpressionVisitor.CreateFromExpression(expression);
             var parameters = new DynamicParameters();
 
             if (!columnsAndValues.Any())

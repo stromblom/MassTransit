@@ -1,7 +1,9 @@
 ﻿namespace MassTransit.DapperIntegration.Tests
 {
     using System;
+    using System.Linq.Expressions;
     using System.Threading.Tasks;
+    using ExpressionVisitor;
     using MassTransit.Tests.Saga;
     using MassTransit.Tests.Saga.Messages;
     using NUnit.Framework;
@@ -26,6 +28,15 @@
             //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelateBySomething == "Fiskbullar", this.TestTimeout); // Works
             //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId, this.TestTimeout); // Works
             //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId && x.Completed, this.TestTimeout); // Works
+
+            Expression<Func<SimpleSaga, bool>> filter = x => x.CorrelateBySomething == "Fiskbullar";
+            SqlExpressionVisitor.CreateFromExpression(filter);
+
+            filter = x => x.CorrelationId == sagaId;
+            SqlExpressionVisitor.CreateFromExpression(filter);
+
+            filter = x => x.CorrelationId == sagaId && x.Completed;
+            SqlExpressionVisitor.CreateFromExpression(filter);
         }
 
         [Test]
