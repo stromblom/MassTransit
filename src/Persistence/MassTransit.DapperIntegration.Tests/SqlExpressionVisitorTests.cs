@@ -13,10 +13,11 @@
 namespace MassTransit.DapperIntegration.Tests
 {
     using System;
+    using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
-    using ExpressionVisitor;
     using NUnit.Framework;
+    using Sql;
 
 
     public class SqlExpressionVisitorTests
@@ -110,6 +111,31 @@ namespace MassTransit.DapperIntegration.Tests
             var third = result[2];
             Assert.That(third.Item1, Is.EqualTo(nameof(SimpleSaga.CorrelateBySomething)));
             Assert.That(third.Item2, Is.EqualTo("Kebabsvarv"));
+        }
+
+        [Test]
+        public void Foo()
+        {
+            // Arrange
+            var sagaId = NewId.NextGuid();
+            Expression<Func<SimpleSaga, bool>> filter = x => x.CorrelationId == sagaId && x.Completed && x.CorrelateBySomething == "Kebabsvarv";
+            Expression<Func<SimpleSaga, bool>> filter2 = x => x.CorrelationId == sagaId && x.Completed;
+            Expression<Func<SimpleSaga, bool>> filter3 = x => x.CorrelateBySomething == "Fiskbullar";
+
+            // Act
+            WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter);
+            WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter2);
+            WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter3);
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < 100000; i++)
+            {
+                WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter);
+                WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter2);
+                WhereStatementHelper.GetWhereStatementAndParametersFromExpression(filter3);
+            }
+            sw.Stop();
+            Console.WriteLine(sw.ElapsedMilliseconds);
         }
     }
 }

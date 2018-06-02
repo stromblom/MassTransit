@@ -3,7 +3,6 @@
     using System;
     using System.Linq.Expressions;
     using System.Threading.Tasks;
-    using ExpressionVisitor;
     using MassTransit.Tests.Saga;
     using MassTransit.Tests.Saga.Messages;
     using NUnit.Framework;

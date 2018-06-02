@@ -22,10 +22,10 @@ namespace MassTransit.DapperIntegration
     using System.Transactions;
     using Dapper;
     using Dapper.Contrib.Extensions;
-    using ExpressionVisitor;
     using GreenPipes;
     using Logging;
     using Saga;
+    using Sql;
     using Util;
 
 
@@ -47,7 +47,7 @@ namespace MassTransit.DapperIntegration
             using (var connection = new SqlConnection(_connectionString))
             {
                 var tableName = GetTableName<TSaga>();
-                var (whereStatement, parameters) = GetWhereStatementAndParametersFromExpression(query.FilterExpression);
+                var (whereStatement, parameters) = WhereStatementHelper.GetWhereStatementAndParametersFromExpression(query.FilterExpression);
 
                 return
                     (await connection.QueryAsync<Guid>($"SELECT CorrelationId FROM {tableName} WITH (UPDLOCK, ROWLOCK) {whereStatement}",
@@ -133,7 +133,7 @@ namespace MassTransit.DapperIntegration
                 try
                 {
                     var tableName = GetTableName<T>();
-                    var (whereStatement, parameters) = GetWhereStatementAndParametersFromExpression(context.Query.FilterExpression);
+                    var (whereStatement, parameters) = WhereStatementHelper.GetWhereStatementAndParametersFromExpression(context.Query.FilterExpression);
 
                     var instances =
                         (await connection.QueryAsync<TSaga>($"SELECT * FROM {tableName} WITH (UPDLOCK, ROWLOCK) {whereStatement}",
@@ -221,36 +221,6 @@ namespace MassTransit.DapperIntegration
             {
                 throw new SagaException(ex.Message, typeof(TSaga), typeof(T), instance.CorrelationId, ex);
             }
-        }
-
-        (string whereStatement, DynamicParameters parameters) GetWhereStatementAndParametersFromExpression(Expression<Func<TSaga, bool>> expression)
-        {
-            var columnsAndValues = SqlExpressionVisitor.CreateFromExpression(expression);
-            var parameters = new DynamicParameters();
-
-            if (!columnsAndValues.Any())
-            {
-                return (string.Empty, parameters);
-            }
-
-            var sb = new StringBuilder();
-            sb.Append("WHERE ");
-
-            var i = 0;
-            foreach (var (name, value) in columnsAndValues)
-            {
-                if (i > 0)
-                {
-                    sb.Append(" AND");
-                }
-
-                var valueName = $"@value{i}";
-                sb.Append($" {name} = {valueName}");
-                parameters.Add(valueName, value);
-                i++;
-            }
-
-            return (sb.ToString(), parameters);
         }
         
         protected virtual async Task InsertSagaInstance(SqlConnection sqlConnection, TSaga instance)
