@@ -47,17 +47,8 @@ namespace MassTransit.DapperIntegration.ExpressionVisitor
             var leftResult = CreateFromExpression(node.Left);
             result.AddRange(leftResult);
 
-            if (node.Right is MemberExpression right) // bool
-            {
-                var name = right.Member.Name;
-                var rightResult = (name, true);
-                result.Add(rightResult);
-            }
-            else
-            {
-                var rightResult = CreateFromExpression(node.Right);
-                result.AddRange(rightResult);
-            }
+            var rightResult = CreateFromExpression(node.Right);
+            result.AddRange(rightResult);
 
             return result;
         }
@@ -84,9 +75,23 @@ namespace MassTransit.DapperIntegration.ExpressionVisitor
 
         static List<(string, object)> MemberAccessVisit(MemberExpression node)
         {
-            // We'll just assume this is a bool for now.
             var name = node.Member.Name;
-            return new List<(string, object)> { (name, true) };
+            object value;
+
+            if (node.Type == typeof(bool))
+            {
+                value = true; // No support for Not yet.
+            }
+            else if (node.Type.IsValueType) 
+            {
+                value = Activator.CreateInstance(node.Type);
+            }
+            else
+            {
+                value = null;
+            }
+
+            return new List<(string, object)> { (name, value) };
         }
     }
 }
