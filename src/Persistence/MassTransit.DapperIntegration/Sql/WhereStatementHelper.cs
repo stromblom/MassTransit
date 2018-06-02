@@ -23,19 +23,10 @@ namespace MassTransit.DapperIntegration.Sql
 
     public static class WhereStatementHelper
     {
-        static readonly ConcurrentDictionary<int, (string whereStatement, DynamicParameters parameters)> CalculatedStatements = 
-            new ConcurrentDictionary<int, (string whereStatement, DynamicParameters parameters)>();
-
         public static (string whereStatement, DynamicParameters parameters) GetWhereStatementAndParametersFromExpression<TSaga>(
             Expression<Func<TSaga, bool>> expression)
             where TSaga : class, ISaga
         {
-            var cacheKey = expression.ToString().GetHashCode();
-            if (CalculatedStatements.TryGetValue(cacheKey, out var result))
-            {
-                return result;
-            }
-
             var columnsAndValues = SqlExpressionVisitor.CreateFromExpression(expression);
             var parameters = new DynamicParameters();
 
@@ -61,11 +52,7 @@ namespace MassTransit.DapperIntegration.Sql
                 i++;
             }
 
-            result = (sb.ToString(), parameters);
-
-            CalculatedStatements.TryAdd(cacheKey, result);
-
-            return result;
+            return (sb.ToString(), parameters);
         }
     }
 }
