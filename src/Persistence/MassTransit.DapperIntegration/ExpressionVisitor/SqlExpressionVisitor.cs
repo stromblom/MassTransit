@@ -29,6 +29,8 @@ namespace MassTransit.DapperIntegration.ExpressionVisitor
                     return AndAlsoVisit((BinaryExpression)node);
                 case ExpressionType.Equal:
                     return EqualVisit((BinaryExpression)node);
+                case ExpressionType.MemberAccess:
+                    return MemberAccessVisit((MemberExpression)node);
                 default:
                     throw new Exception("Node type not supported.");
             }
@@ -78,6 +80,13 @@ namespace MassTransit.DapperIntegration.ExpressionVisitor
             }
 
             return new List<(string, object)> {(name, value)};
+        }
+
+        static List<(string, object)> MemberAccessVisit(MemberExpression node)
+        {
+            // We'll just assume this is a bool for now.
+            var name = node.Member.Name;
+            return new List<(string, object)> { (name, true) };
         }
     }
 }

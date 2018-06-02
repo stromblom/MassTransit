@@ -18,28 +18,6 @@
         InMemoryTestFixture
     {
         [Test]
-        public async Task TestExpressions()
-        {
-            Guid sagaId = NewId.NextGuid();
-            var message = new InitiateSimpleSaga(sagaId);
-
-            await this.InputQueueSendEndpoint.Send(message);
-
-            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelateBySomething == "Fiskbullar", this.TestTimeout); // Works
-            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId, this.TestTimeout); // Works
-            //var found = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId && x.Completed, this.TestTimeout); // Works
-
-            Expression<Func<SimpleSaga, bool>> filter = x => x.CorrelateBySomething == "Fiskbullar";
-            SqlExpressionVisitor.CreateFromExpression(filter);
-
-            filter = x => x.CorrelationId == sagaId;
-            SqlExpressionVisitor.CreateFromExpression(filter);
-
-            filter = x => x.CorrelationId == sagaId && x.Completed;
-            SqlExpressionVisitor.CreateFromExpression(filter);
-        }
-
-        [Test]
         public async Task A_correlated_message_should_find_the_correct_saga()
         {
             Guid sagaId = NewId.NextGuid();
@@ -58,6 +36,26 @@
             foundId = await this._sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId && x.Completed, this.TestTimeout);
 
             foundId.HasValue.ShouldBe(true);
+        }
+
+        [Test]
+        public async Task An_observed_message_should_find_and_update_the_correct_saga()
+        {
+            Guid sagaId = NewId.NextGuid();
+            var message = new InitiateSimpleSaga(sagaId) { Name = "MySimpleSaga" };
+
+            await InputQueueSendEndpoint.Send(message);
+
+            Guid? found = await _sagaRepository.Value.ShouldContainSaga(message.CorrelationId, TestTimeout);
+
+            found.ShouldBe(sagaId);
+
+            var nextMessage = new ObservableSagaMessage { Name = "MySimpleSaga" };
+
+            await InputQueueSendEndpoint.Send(nextMessage);
+
+            found = await _sagaRepository.Value.ShouldContainSaga(x => x.CorrelationId == sagaId && x.Observed, TestTimeout);
+            found.ShouldBe(sagaId);
         }
 
         [Test]
